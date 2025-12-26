@@ -11,4 +11,6 @@ DEBUG = True
 
 
 # TODO IMPLEMENT DATABASE URL
-SQLALCHEMY_DATABASE_URI = "postgresql://fyyur_user:fyyur_password@localhost:5432/fyyur"
+SQLALCHEMY_DATABASE_URI = os.getenv(
+    "DATABASE_URL", "postgresql://fyyur_user:fyyur_password@localhost:5432/fyyur"
+)

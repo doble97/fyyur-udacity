@@ -141,12 +141,12 @@ def seed_data(db, Venue, Artist, Show):
     Recibe db y los modelos como argumentos para evitar importaciones circulares.
     """
     print("Iniciando limpieza de tablas...")
-    db.session.execute("DELETE FROM artist_genre")
-    db.session.execute("DELETE FROM venue_genre")
-    Show.query.delete()
-    Artist.query.delete()
-    Venue.query.delete()
-    Genre.query.delete()
+    # db.session.execute("DELETE FROM artist_genre")
+    # db.session.execute("DELETE FROM venue_genre")
+    # Show.query.delete()
+    # Artist.query.delete()
+    # Venue.query.delete()
+    # Genre.query.delete()
 
     # --- Create Genres ---
     genres = insert_genre(db)

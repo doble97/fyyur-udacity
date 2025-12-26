@@ -20,3 +20,19 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+  flask_api:
+    build: .
+    container_name: fyyur_api
+    restart: unless-stopped
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    environment:
+      DATABASE_URL: postgresql://fyyur_user:fyyur_password@postgres:5432/fyyur
+
+    ports:
+      - "5000:5000"
+
+    command: python app.py

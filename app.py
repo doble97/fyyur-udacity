@@ -3,6 +3,7 @@
 # ----------------------------------------------------------------------------#
 
 import json
+import os
 import dateutil.parser
 import babel
 from flask import (
@@ -478,14 +479,18 @@ if not app.debug:
 # ----------------------------------------------------------------------------#
 
 # Default port:
-if __name__ == "__main__":
-    with app.app_context():
-        seed_data(db, Venue, Artist, Show)
-    app.run()
+# if __name__ == "__main__":
+#     with app.app_context():
+#         db.drop_all()
+#         db.create_all()
+#         seed_data(db, Venue, Artist, Show)
+#     app.run()
 
 # Or specify port manually:
-"""
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
-"""
+if __name__ == "__main__":
+    with app.app_context():
+        db.drop_all()
+        db.create_all()
+        seed_data(db, Venue, Artist, Show)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
