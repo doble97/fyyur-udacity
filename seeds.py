@@ -1,6 +1,7 @@
 from datetime import datetime
+from os import name
 
-from models import Artist
+from models import Artist, Genre
 
 
 data1 = {
@@ -85,12 +86,12 @@ data3 = {
 artist_list = [data1, data2, data3]
 
 
-def getArtist(position: int):
+def getArtist(position: int, genres_list):
     data = artist_list[position]
     new_artist = Artist(
         id=data["id"],
         name=data["name"],
-        genres=",".join(data["genres"]),
+        genres=genres_list,
         city=data["city"],
         state=data["state"],
         phone=data["phone"],
@@ -103,16 +104,52 @@ def getArtist(position: int):
     return new_artist
 
 
+def insert_genre(db):
+    genres = [
+        "Alternative",
+        "Blues",
+        "Classical",
+        "Country",
+        "Electronic",
+        "Folk",
+        "Funk",
+        "Hip-Hop",
+        "Heavy Metal",
+        "Instrumental",
+        "Jazz",
+        "Musical Theatre",
+        "Pop",
+        "Punk",
+        "R&B",
+        "Reggae",
+        "Rock n Roll",
+        "Soul",
+        "Other",
+    ]
+    inserted_genres = []
+    for name_genre in genres:
+        temp_genre = Genre(name=name_genre)
+        inserted_genres.append(temp_genre)
+    db.session.add_all(inserted_genres)
+    db.session.flush()
+    return inserted_genres
+
+
 def seed_data(db, Venue, Artist, Show):
     """
     Puebla la base de datos con datos iniciales.
     Recibe db y los modelos como argumentos para evitar importaciones circulares.
     """
     print("Iniciando limpieza de tablas...")
+    db.session.execute("DELETE FROM artist_genre")
+    db.session.execute("DELETE FROM venue_genre")
     Show.query.delete()
     Artist.query.delete()
     Venue.query.delete()
+    Genre.query.delete()
 
+    # --- Create Genres ---
+    genres = insert_genre(db)
     # --- Crear Venues ---
     v1 = Venue(
         name="The Musical Hop",
@@ -121,6 +158,7 @@ def seed_data(db, Venue, Artist, Show):
         address="1015 Folsom St",
         phone="123-123-1234",
         facebook_link="https://www.facebook.com/TheMusicalHop",
+        genres=[genres[0], genres[3]],
     )
     v2 = Venue(
         name="Park Square Live Music & Coffee",
@@ -129,6 +167,7 @@ def seed_data(db, Venue, Artist, Show):
         address="34 Whiskey Moore Ave",
         phone="415-000-1234",
         facebook_link="https://www.facebook.com/ParkSquareLiveMusicAndCoffee",
+        genres=[genres[1], genres[2]],
     )
     v3 = Venue(
         name="The Dueling Pianos Bar",
@@ -137,14 +176,15 @@ def seed_data(db, Venue, Artist, Show):
         address="335 Delancey Street",
         phone="914-003-1132",
         facebook_link="https://www.facebook.com/theduelingpianos",
+        genres=[genres[4], genres[8]],
     )
     db.session.add_all([v1, v2, v3])
     db.session.flush()
 
     # Create artists
-    a1 = getArtist(0)
-    a2 = getArtist(1)
-    a3 = getArtist(2)
+    a1 = getArtist(0, [genres[0], genres[3], genres[2]])
+    a2 = getArtist(1, [genres[2], genres[3], genres[1]])
+    a3 = getArtist(2, [genres[5]])
     db.session.add_all([a1, a2, a3])
     db.session.flush()
     # --- Crear Shows ---
