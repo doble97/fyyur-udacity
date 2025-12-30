@@ -65,7 +65,6 @@ def get_genres(genres: list[Genre]):
 
 def get_filtered_genres(words):
     filters = [Genre.name.ilike(f"%{word}%") for word in words]
-
     return Genre.query.filter(or_(*filters)).all()
 
 
@@ -87,22 +86,27 @@ def index():
 
 @app.route("/venues")
 def venues():
-    allVenues: list[Venue] = Venue.query.all()
-    if not allVenues:
+    all_venues: list[Venue] = Venue.query.all()
+    if not all_venues:
         return render_template("pages/venues.html", areas=[])
-    dataDictionary = {}
-    for venue in allVenues:
-        keyVenue = f"{venue.city}-{venue.state}"
-        locationVenue = {"city": venue.city, "state": venue.state, "venues": []}
-        if keyVenue not in dataDictionary:
-            dataDictionary[keyVenue] = locationVenue
-        countShows = [show for show in venue.shows if show.start_time > datetime.now()]
-        count_upcoming = len(countShows)
-        dataDictionary[keyVenue]["venues"].append(
+    datadictionary = {}
+    for venue in all_venues:
+        keyvenue = f"{venue.city}-{venue.state}"
+        locationvenue = {"city": venue.city, "state": venue.state, "venues": []}
+        if keyvenue not in datadictionary:
+            datadictionary[keyvenue] = locationvenue
+        total_shows = (
+            db.session.query(Show)
+            .join(Venue)
+            .filter((venue.id == Show.venue_id) & (Show.start_time > datetime.now()))
+            .all()
+        )
+        count_upcoming = len(total_shows)
+        datadictionary[keyvenue]["venues"].append(
             {"id": venue.id, "name": venue.name, "num_upcoming_shows": count_upcoming}
         )
     data = []
-    for value in dataDictionary.values():
+    for value in datadictionary.values():
         data.append(value)
     return render_template("pages/venues.html", areas=data)
 
@@ -119,8 +123,13 @@ def search_venues():
         "data": [],
     }
     for venue in venues:
-        countShows = [show for show in venue.shows if show.start_time > datetime.now()]
-        total_shows = len(countShows)
+        total_shows = (
+            db.session.query(Show)
+            .join(Venue)
+            .filter((venue.id == Show.venue_id) & (Show.start_time > datetime.now()))
+            .all()
+        )
+        total_shows = len(total_shows)
         response["data"].append(
             {"id": venue.id, "name": venue.name, "num_upcoming_shows": total_shows}
         )
@@ -136,16 +145,20 @@ def search_venues():
 def show_venue(venue_id):
     # shows the venue page with the given venue_id
     # DONE: replace with real venue data from the venues table, using venue_id
-    venue: Venue = Venue.query.get(venue_id)
+    venue: Venue = Venue.query.get_or_404(venue_id)
     past_shows = []
     upcomming_shows = []
-    shows: list[Show] = venue.shows
-    for show in shows:
-        temp_artist: Artist = Artist.query.get(show.artist_id)
+    results = (
+        db.session.query(Show, Artist)
+        .join(Artist, Show.artist_id == Artist.id)
+        .filter(Show.venue_id == venue_id)
+        .all()
+    )
+    for show, artist in results:
         temp_show = {
             "artist_id": show.artist_id,
             "start_time": show.start_time,
-            "artist_image_link": temp_artist.image_link,
+            "artist_image_link": artist.image_link,
         }
         if show.start_time > datetime.now():
             upcomming_shows.append(temp_show)
@@ -178,24 +191,23 @@ def create_venue_submission():
     # DONE: modify data to be the data object returned from db insertion
     form = VenueForm()
     if form.validate_on_submit():
+        data = form.data
+        data["website"] = data.pop("website_link")
+        data.pop("csrf_token")
+        genres = db.session.query(Genre).filter(Genre.name.in_(data["genres"])).all()
+        data["genres"] = genres
+        temp_venue = Venue(**data)
+        db.session.add(temp_venue)
         try:
-            pass
-            data = form.data
-            # data["genres"] = ",".join(data["genres"])
-            data["website"] = data.pop("website_link")
-            data.pop("csrf_token", None)
-            genres = get_filtered_genres(data["genres"])
-            data["genres"] = genres
-            temp_venue = Venue(**data)
-            db.session.add(temp_venue)
             db.session.commit()
-            flash("Venue " + temp_venue.name + " was successfully listed!")
+            flash(f"Venue {temp_venue.name} is saved in db")
         except Exception as e:
-            flash(
-                f"An error ocurred. Venue {request.form['name']} cound not be listed."
-            )
+            db.session.rollback()
+            flash("An error ocurred. Vene is not saved in db")
     else:
-        flash(f"An error ocurred. Venue {request.form['name']} cound not be listed.")
+        flash(
+            f"An error ocurred. Venue {request.form['name']} cound not be listed. There's probably a field missing."
+        )
     # on successful db insert, flash success
     # DONE: on unsuccessful db insert, flash an error instead.
     # e.g., flash('An error occurred. Venue ' + data.name + ' could not be listed.')
@@ -213,7 +225,7 @@ def delete_venue(venue_id):
         db.session.commit()
         flash("Venue fue eliminado exitosamente.")
         return jsonify({"success": True}), 200
-    except Exception as e:
+    except Exception:
         db.session.rollback()
         flash("Venue no sepudo eliminar")
         return jsonify({"success": False}), 500
@@ -261,29 +273,41 @@ def show_artist(artist_id):
     # shows the artist page with the given artist_id
     # DONE: replace with real artist data from the artist table, using artist_id
 
-    result: Artist = Artist.query.get(artist_id)
-    past_shows = []
-    upcoming_shows = []
-    for show in result.shows:
-        temp_show = {
-            "venue_id": show.venue_id,
-            "venue_name": show.venue.name,
-            "venue_image_link": show.venue.image_link,
-            "start_time": show.start_time,
+    try:
+        artist: Artist = Artist.query.get_or_404(artist_id)
+        shows = (
+            db.session.query(Show).join(Venue).filter(Show.artist_id == artist_id).all()
+        )
+        upcoming_shows = []
+        past_shows = []
+        results = (
+            db.session.query(Show, Venue)
+            .join(Venue, Show.venue_id == Venue.id)
+            .filter(Show.artist_id == artist_id)
+            .all()
+        )
+        for show, venue in results:
+            temp_show = {
+                "venue_id": venue.id,
+                "venue_name": venue.name,
+                "venue_image_link": venue.image_link,
+                "start_time": show.start_time,
+            }
+            if show.start_time > datetime.now():
+                upcoming_shows.append(temp_show)
+            else:
+                past_shows.append(temp_show)
+        data = {
+            **artist.to_dict(),
+            "past_shows": past_shows,
+            "past_shows_count": len(past_shows),
+            "upcoming_shows": upcoming_shows,
+            "upcoming_shows_count": len(upcoming_shows),
+            "genres": [g.name for g in artist.genres],
         }
-        if show.start_time < datetime.now():
-            past_shows.append(temp_show)
-        else:
-            upcoming_shows.append(temp_show)
-    genres = get_genres(result.genres)
-    data = {
-        **result.to_dict(),
-        "past_shows": past_shows,
-        "past_shows_count": len(past_shows),
-        "upcoming_shows": upcoming_shows,
-        "upcoming_shows_count": len(upcoming_shows),
-        "genres": genres,
-    }
+    except Exception:
+        flash("Error, may have been caused by the artist bot being found")
+        return render_template("pages/home.html")
 
     return render_template("pages/show_artist.html", artist=data)
 
@@ -353,7 +377,6 @@ def edit_venue_submission(venue_id):
             flash("Invalid data")
     except Exception as e:
         flash("Error in server")
-        raise e
     return redirect(url_for("show_venue", venue_id=venue_id))
 
 
@@ -372,24 +395,23 @@ def create_artist_submission():
     # called upon submitting the new artist listing form
     # DONE: insert form data as a new Venue record in the db, instead
     # DONE: modify data to be the data object returned from db insertion
-    try:
-        form = ArtistForm()
-        if form.validate_on_submit():
-            data = form.data
-            genres = get_filtered_genres(data["genres"])
-            data["genres"] = genres
-            data["website"] = data["website_link"]
-            del data["website_link"]
-            del data["csrf_token"]
-            artist = Artist(**data)
-            db.session.add(artist)
+    form = ArtistForm()
+    if form.validate_on_submit():
+        data = form.data
+        data.pop("csrf_token")
+        data["website"] = data.pop("website_link")
+        genres = db.session.query(Genre).filter(Genre.name.in_(data["genres"])).all()
+        data["genres"] = genres
+        artist = Artist(**data)
+        db.session.add(artist)
+        try:
             db.session.commit()
-            flash("Artist " + artist.name + " was successfully listed!")
-        else:
-            flash("Invalid data for " + form.data["name"], "error")
-    except Exception as e:
-        flash("Error in server", "error")
-        raise e
+            flash(f"Arist {artist.name} was created")
+        except Exception as e:
+            db.session.rollback()
+            flash("Internal error")
+    else:
+        flash("Invalid data for " + form.data["name"])
     # on successful db insert, flash success
     # DONE: on unsuccessful db insert, flash an error instead.
     # e.g., flash('An error occurred. Artist ' + data.name + ' could not be listed.')
@@ -441,13 +463,13 @@ def create_show_submission():
             show = Show(**data)
             db.session.add(show)
             db.session.commit()
+            flash("Show was successfully listed!")
         else:
             flash(f"Error in data", "error")
-    except Exception as e:
+    except Exception:
         flash("Error in server")
-        raise e
+        db.session.rollback()
     # on successful db insert, flash success
-    flash("Show was successfully listed!")
     # DONE: on unsuccessful db insert, flash an error instead.
     # e.g., flash('An error occurred. Show could not be listed.')
     # see: http://flask.pocoo.org/docs/1.0/patterns/flashing/

@@ -9,8 +9,11 @@ DEBUG = True
 
 # Connect to the database
 
-
-# TODO IMPLEMENT DATABASE URL
-SQLALCHEMY_DATABASE_URI = os.getenv(
-    "DATABASE_URL", "postgresql://fyyur_user:fyyur_password@localhost:5432/fyyur"
+DB_HOST = os.getenv("DB_HOST", "127.0.0.1:5432")
+DB_USER = os.getenv("DB_USER", "fyyur_user")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "fyyur_password")
+DB_NAME = os.getenv("DB_NAME", "fyyur")
+STRING_CONNECTION = "postgresql://{}:{}@{}/{}".format(
+    DB_USER, DB_PASSWORD, DB_HOST, DB_NAME
 )
+SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL", STRING_CONNECTION)

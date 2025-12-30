@@ -5,8 +5,7 @@ window.parseISOString = function parseISOString(s) {
 
 const deleteBtn = document.getElementById('deleteBtn')
 deleteBtn?.addEventListener('click', async (e) => {
-  console.log('evento---8>', deleteBtn.dataset.idVenue)
-  const endpoint = '/venues/' + deleteBtn.dataset.idVenue
+  const endpoint = '/venues/' + deleteBtn.dataset.idvenue
   const resp = await fetch(endpoint, { method: 'DELETE' })
   window.location.href = '/'
 })

@@ -20,6 +20,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
   flask_api:
     build: .
     container_name: fyyur_api

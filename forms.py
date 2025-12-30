@@ -7,7 +7,7 @@ from wtforms import (
     DateTimeField,
     BooleanField,
 )
-from wtforms.validators import DataRequired, AnyOf, URL, Optional
+from wtforms.validators import DataRequired, AnyOf, URL, Optional, Regexp
 
 
 class ShowForm(Form):
@@ -82,7 +82,8 @@ class VenueForm(Form):
     phone = StringField("phone")
     image_link = StringField("image_link")
     genres = SelectMultipleField(
-        # TODO implement enum restriction
+        # TODO: implement enum restriction
+        # I have implement a genre table
         "genres",
         validators=[DataRequired()],
         choices=[
@@ -107,7 +108,7 @@ class VenueForm(Form):
             ("Other", "Other"),
         ],
     )
-    facebook_link = StringField("facebook_link", validators=[Optional(), URL()])
+    facebook_link = StringField("facebook_link", validators=[URL()])
     website_link = StringField("website_link")
 
     seeking_talent = BooleanField("seeking_talent")
@@ -177,7 +178,8 @@ class ArtistForm(Form):
     )
     phone = StringField(
         # TODO implement validation logic for state
-        "phone"
+        "phone",
+        validators=[Optional(), Regexp(r"^\d{3}-\d{3}-\d{4}$")],
     )
     image_link = StringField("image_link")
     genres = SelectMultipleField(
@@ -206,7 +208,7 @@ class ArtistForm(Form):
         ],
     )
     facebook_link = StringField(
-        # TODO implement enum restriction
+        # DONE: implement enum restriction
         "facebook_link",
         validators=[Optional(), URL()],
     )
